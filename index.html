@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning Lounge Admin</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background: #f4f4f4; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; }
+        button { background: #0B1826; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px; }
+        button:hover { background: #1a2a3a; }
+        select, input[type="text"], textarea { width: 100%; padding: 8px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        .form-group { margin-bottom: 15px; }
+        .catalog-list { list-style: none; padding: 0; }
+        .catalog-list li { background: #f9f9f9; margin: 5px 0; padding: 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .error { color: red; margin: 10px 0; }
+        .success { color: green; margin: 10px 0; }
+        .tab { overflow: hidden; border-bottom: 1px solid #ccc; margin-bottom: 20px; }
+        .tab button { background-color: inherit; float: left; border: none; outline: none; cursor: pointer; padding: 14px 16px; transition: 0.3s; color: #333; }
+        .tab button:hover { background-color: #ddd; }
+        .tab button.active { background-color: #ccc; }
+        .tabcontent { display: none; padding: 6px 12px; border-top: none; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 Learning Lounge Admin</h1>
+        <p>Manage subjects, years, and add questions. Changes reflect in the app.</p>
+
+        <!-- Tab Navigation -->
+        <div class="tab">
+            <button class="tablinks active" onclick="openTab(event, 'Subjects')">Subjects</button>
+            <button class="tablinks" onclick="openTab(event, 'Years')">Years</button>
+            <button class="tablinks" onclick="openTab(event, 'AddQuestion')">Add Question</button>
+        </div>
+
+        <!-- Subjects Tab -->
+        <div id="Subjects" class="tabcontent" style="display: block;">
+            <h2>Manage Subjects</h2>
+            <div class="form-group">
+                <input type="text" id="subjectName" placeholder="Subject Name (e.g., 'Chemistry')">
+                <input type="text" id="subjectIcon" placeholder="Icon (e.g., '🧪')">
+                <input type="text" id="subjectColor" placeholder="Color (e.g., '#00695C')">
+                <input type="text" id="subjectBg" placeholder="Background (e.g., '#E0F2F1')">
+                <button onclick="addSubject()">Add Subject</button>
+            </div>
+            <ul id="subjectsList" class="catalog-list"></ul>
+        </div>
+
+        <!-- Years Tab -->
+        <div id="Years" class="tabcontent">
+            <h2>Manage Years</h2>
+            <div class="form-group">
+                <input type="number" id="yearInput" placeholder="Year (e.g., 2024)">
+                <button onclick="addYear()">Add Year</button>
+            </div>
+            <ul id="yearsList" class="catalog-list"></ul>
+        </div>
+
+        <!-- Add Question Tab -->
+        <div id="AddQuestion" class="tabcontent">
+            <h2>Add New Question</h2>
+            <div class="form-group">
+                <label>Subject:</label>
+                <select id="qSubject"></select>
+            </div>
+            <div class="form-group">
+                <label>Year:</label>
+                <select id="qYear"></select>
+            </div>
+            <div class="form-group">
+                <label>Exam Type:</label>
+                <select id="qExamType"></select>
+            </div>
+            <div class="form-group">
+                <textarea id="qText" rows="3" placeholder="Question text"></textarea>
+            </div>
+            <div class="form-group">
+                <input type="text" id="qOptA" placeholder="Option A">
+                <input type="text" id="qOptB" placeholder="Option B">
+                <input type="text" id="qOptC" placeholder="Option C">
+                <input type="text" id="qOptD" placeholder="Option D">
+            </div>
+            <div class="form-group">
+                <label>Correct Option:</label>
+                <select id="qCorrect">
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <textarea id="qExplanation" rows="2" placeholder="Explanation (optional)"></textarea>
+            </div>
+            <button onclick="addQuestion()">Add Question</button>
+            <div id="message"></div>
+        </div>
+    </div>
+
+    <script>
+        // IMPORTANT: Replace with your actual Render backend URL
+        const API_BASE = 'https://learning-lounge-api.onrender.com';
+
+        // Utility to show messages
+        function showMessage(text, isError = false) {
+            const msgDiv = document.getElementById('message');
+            msgDiv.textContent = text;
+            msgDiv.className = isError ? 'error' : 'success';
+            setTimeout(() => msgDiv.textContent = '', 5000);
+        }
+
+        // Tab switching
+        function openTab(evt, tabName) {
+            const tabcontent = document.getElementsByClassName("tabcontent");
+            for (let i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            const tablinks = document.getElementsByClassName("tablinks");
+            for (let i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+            
+            // Load data when switching tabs
+            if (tabName === 'Subjects') loadSubjects();
+            else if (tabName === 'Years') loadYears();
+            else if (tabName === 'AddQuestion') {
+                loadSubjectsForSelect();
+                loadExamTypesForSelect();
+                loadYearsForSelect();
+            }
+        }
+
+        // --- Subjects ---
+        async function loadSubjects() {
+            const res = await fetch(`${API_BASE}/subjects`);
+            const subjects = await res.json();
+            const list = document.getElementById('subjectsList');
+            list.innerHTML = subjects.map(s => `
+                <li>
+                    ${s.name} ${s.icon || ''}
+                    <button onclick="deleteSubject('${s.id}')">Delete</button>
+                </li>
+            `).join('');
+        }
+
+        async function addSubject() {
+            const name = document.getElementById('subjectName').value;
+            const icon = document.getElementById('subjectIcon').value;
+            const color = document.getElementById('subjectColor').value;
+            const bg = document.getElementById('subjectBg').value;
+            if (!name) return alert('Subject name required');
+
+            const res = await fetch(`${API_BASE}/subjects`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, icon, color, bg })
+            });
+            if (res.ok) {
+                loadSubjects();
+                document.getElementById('subjectName').value = '';
+                document.getElementById('subjectIcon').value = '';
+                document.getElementById('subjectColor').value = '';
+                document.getElementById('subjectBg').value = '';
+            } else {
+                const err = await res.json();
+                showMessage(`Error: ${err.error}`, true);
+            }
+        }
+
+        async function deleteSubject(id) {
+            if (!confirm('Are you sure?')) return;
+            await fetch(`${API_BASE}/subjects/${id}`, { method: 'DELETE' });
+            loadSubjects();
+        }
+
+        // --- Years ---
+        async function loadYears() {
+            const res = await fetch(`${API_BASE}/years`);
+            const years = await res.json();
+            const list = document.getElementById('yearsList');
+            list.innerHTML = years.map(y => `
+                <li>
+                    ${y.year}
+                    <button onclick="deleteYear('${y.id}')">Delete</button>
+                </li>
+            `).join('');
+        }
+
+        async function addYear() {
+            const year = document.getElementById('yearInput').value;
+            if (!year) return alert('Year required');
+            const res = await fetch(`${API_BASE}/years`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ year: parseInt(year) })
+            });
+            if (res.ok) {
+                loadYears();
+                document.getElementById('yearInput').value = '';
+            } else {
+                const err = await res.json();
+                showMessage(`Error: ${err.error}`, true);
+            }
+        }
+
+        async function deleteYear(id) {
+            if (!confirm('Are you sure?')) return;
+            await fetch(`${API_BASE}/years/${id}`, { method: 'DELETE' });
+            loadYears();
+        }
+
+        // --- Load Data for Question Form ---
+        async function loadSubjectsForSelect() {
+            const res = await fetch(`${API_BASE}/subjects`);
+            const subjects = await res.json();
+            const select = document.getElementById('qSubject');
+            select.innerHTML = subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        }
+
+        async function loadExamTypesForSelect() {
+            const res = await fetch(`${API_BASE}/exam-types`);
+            const types = await res.json();
+            const select = document.getElementById('qExamType');
+            select.innerHTML = types.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        }
+
+        async function loadYearsForSelect() {
+            const res = await fetch(`${API_BASE}/years`);
+            const years = await res.json();
+            const select = document.getElementById('qYear');
+            select.innerHTML = years.map(y => `<option value="${y.id}">${y.year}</option>`).join('');
+        }
+
+        // --- Add Question ---
+        async function addQuestion() {
+            const subject_id = document.getElementById('qSubject').value;
+            const exam_type_id = document.getElementById('qExamType').value;
+            const year_id = document.getElementById('qYear').value;
+            const question_text = document.getElementById('qText').value;
+            const option_a = document.getElementById('qOptA').value;
+            const option_b = document.getElementById('qOptB').value;
+            const option_c = document.getElementById('qOptC').value;
+            const option_d = document.getElementById('qOptD').value;
+            const correct_option = document.getElementById('qCorrect').value;
+            const explanation = document.getElementById('qExplanation').value;
+
+            if (!subject_id || !exam_type_id || !year_id || !question_text) {
+                return showMessage('Please fill in all required fields', true);
+            }
+
+            const res = await fetch(`${API_BASE}/questions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    subject_id, exam_type_id, year_id,
+                    question_text, option_a, option_b, option_c, option_d,
+                    correct_option, explanation
+                })
+            });
+
+            if (res.ok) {
+                showMessage('Question added successfully!');
+                // Clear form
+                document.getElementById('qText').value = '';
+                document.getElementById('qOptA').value = '';
+                document.getElementById('qOptB').value = '';
+                document.getElementById('qOptC').value = '';
+                document.getElementById('qOptD').value = '';
+                document.getElementById('qExplanation').value = '';
+            } else {
+                const err = await res.json();
+                showMessage(`Error: ${err.error}`, true);
+            }
+        }
+
+        // Initial load
+        window.onload = () => {
+            loadSubjects();
+            loadYears();
+            loadSubjectsForSelect();
+            loadExamTypesForSelect();
+            loadYearsForSelect();
+        };
+    </script>
+</body>
+</html>
