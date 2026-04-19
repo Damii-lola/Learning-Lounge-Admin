@@ -10,7 +10,7 @@
         h1, h2 { color: #333; }
         button { background: #0B1826; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px; }
         button:hover { background: #1a2a3a; }
-        select, input[type="text"], textarea { width: 100%; padding: 8px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        select, input[type="text"], input[type="number"], textarea { width: 100%; padding: 8px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
         .form-group { margin-bottom: 15px; }
         .catalog-list { list-style: none; padding: 0; }
         .catalog-list li { background: #f9f9f9; margin: 5px 0; padding: 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
@@ -21,15 +21,19 @@
         .tab button:hover { background-color: #ddd; }
         .tab button.active { background-color: #ccc; }
         .tabcontent { display: none; padding: 6px 12px; border-top: none; }
-        .hidden { display: none; }
+        #statusBar { padding: 10px; margin-bottom: 15px; border-radius: 4px; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📚 Learning Lounge Admin</h1>
-        <p>Manage subjects, years, and add questions. Changes reflect in the app.</p>
+        
+        <!-- Status & Test Connection -->
+        <div id="statusBar" style="background: #f0f0f0;">
+            <span id="connectionStatus">⚪ Not tested</span>
+            <button onclick="testConnection()" style="float: right;">Test Connection</button>
+        </div>
 
-        <!-- Tab Navigation -->
         <div class="tab">
             <button class="tablinks active" onclick="openTab(event, 'Subjects')">Subjects</button>
             <button class="tablinks" onclick="openTab(event, 'Years')">Years</button>
@@ -101,15 +105,36 @@
     </div>
 
     <script>
-        // IMPORTANT: Replace with your actual Render backend URL
+        // ===== CONFIGURATION =====
+        // 🔴 REPLACE WITH YOUR ACTUAL RENDER BACKEND URL
         const API_BASE = 'https://learning-lounge-backend.onrender.com';
-
-        // Utility to show messages
+        
+        // Helper to show messages
         function showMessage(text, isError = false) {
             const msgDiv = document.getElementById('message');
             msgDiv.textContent = text;
             msgDiv.className = isError ? 'error' : 'success';
             setTimeout(() => msgDiv.textContent = '', 5000);
+        }
+
+        function setConnectionStatus(ok, text) {
+            const el = document.getElementById('connectionStatus');
+            el.innerHTML = ok ? '🟢 Connected' : '🔴 Error: ' + text;
+            el.style.color = ok ? 'green' : 'red';
+        }
+
+        async function testConnection() {
+            try {
+                const res = await fetch(`${API_BASE}/subjects`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                setConnectionStatus(true);
+                console.log('Connection OK, subjects:', data);
+                loadSubjects(); // refresh
+            } catch (err) {
+                setConnectionStatus(false, err.message);
+                console.error('Connection test failed:', err);
+            }
         }
 
         // Tab switching
@@ -125,7 +150,6 @@
             document.getElementById(tabName).style.display = "block";
             evt.currentTarget.className += " active";
             
-            // Load data when switching tabs
             if (tabName === 'Subjects') loadSubjects();
             else if (tabName === 'Years') loadYears();
             else if (tabName === 'AddQuestion') {
@@ -137,15 +161,19 @@
 
         // --- Subjects ---
         async function loadSubjects() {
-            const res = await fetch(`${API_BASE}/subjects`);
-            const subjects = await res.json();
-            const list = document.getElementById('subjectsList');
-            list.innerHTML = subjects.map(s => `
-                <li>
-                    ${s.name} ${s.icon || ''}
-                    <button onclick="deleteSubject('${s.id}')">Delete</button>
-                </li>
-            `).join('');
+            try {
+                const res = await fetch(`${API_BASE}/subjects`);
+                const subjects = await res.json();
+                const list = document.getElementById('subjectsList');
+                list.innerHTML = subjects.map(s => `
+                    <li>
+                        ${s.name} ${s.icon || ''}
+                        <button onclick="deleteSubject('${s.id}')">Delete</button>
+                    </li>
+                `).join('');
+            } catch (err) {
+                showMessage('Failed to load subjects: ' + err.message, true);
+            }
         }
 
         async function addSubject() {
@@ -155,66 +183,88 @@
             const bg = document.getElementById('subjectBg').value;
             if (!name) return alert('Subject name required');
 
-            const res = await fetch(`${API_BASE}/subjects`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, icon, color, bg })
-            });
-            if (res.ok) {
+            try {
+                const res = await fetch(`${API_BASE}/subjects`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, icon, color, bg })
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error);
+                }
+                showMessage('Subject added!');
                 loadSubjects();
                 document.getElementById('subjectName').value = '';
                 document.getElementById('subjectIcon').value = '';
                 document.getElementById('subjectColor').value = '';
                 document.getElementById('subjectBg').value = '';
-            } else {
-                const err = await res.json();
-                showMessage(`Error: ${err.error}`, true);
+            } catch (err) {
+                showMessage('Error: ' + err.message, true);
             }
         }
 
         async function deleteSubject(id) {
             if (!confirm('Are you sure?')) return;
-            await fetch(`${API_BASE}/subjects/${id}`, { method: 'DELETE' });
-            loadSubjects();
+            try {
+                await fetch(`${API_BASE}/subjects/${id}`, { method: 'DELETE' });
+                loadSubjects();
+                showMessage('Subject deleted');
+            } catch (err) {
+                showMessage('Delete failed: ' + err.message, true);
+            }
         }
 
         // --- Years ---
         async function loadYears() {
-            const res = await fetch(`${API_BASE}/years`);
-            const years = await res.json();
-            const list = document.getElementById('yearsList');
-            list.innerHTML = years.map(y => `
-                <li>
-                    ${y.year}
-                    <button onclick="deleteYear('${y.id}')">Delete</button>
-                </li>
-            `).join('');
+            try {
+                const res = await fetch(`${API_BASE}/years`);
+                const years = await res.json();
+                const list = document.getElementById('yearsList');
+                list.innerHTML = years.map(y => `
+                    <li>
+                        ${y.year}
+                        <button onclick="deleteYear('${y.id}')">Delete</button>
+                    </li>
+                `).join('');
+            } catch (err) {
+                showMessage('Failed to load years: ' + err.message, true);
+            }
         }
 
         async function addYear() {
             const year = document.getElementById('yearInput').value;
             if (!year) return alert('Year required');
-            const res = await fetch(`${API_BASE}/years`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ year: parseInt(year) })
-            });
-            if (res.ok) {
+            try {
+                const res = await fetch(`${API_BASE}/years`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ year: parseInt(year) })
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error);
+                }
+                showMessage('Year added!');
                 loadYears();
                 document.getElementById('yearInput').value = '';
-            } else {
-                const err = await res.json();
-                showMessage(`Error: ${err.error}`, true);
+            } catch (err) {
+                showMessage('Error: ' + err.message, true);
             }
         }
 
         async function deleteYear(id) {
             if (!confirm('Are you sure?')) return;
-            await fetch(`${API_BASE}/years/${id}`, { method: 'DELETE' });
-            loadYears();
+            try {
+                await fetch(`${API_BASE}/years/${id}`, { method: 'DELETE' });
+                loadYears();
+                showMessage('Year deleted');
+            } catch (err) {
+                showMessage('Delete failed: ' + err.message, true);
+            }
         }
 
-        // --- Load Data for Question Form ---
+        // --- Load dropdowns for question form ---
         async function loadSubjectsForSelect() {
             const res = await fetch(`${API_BASE}/subjects`);
             const subjects = await res.json();
@@ -253,33 +303,35 @@
                 return showMessage('Please fill in all required fields', true);
             }
 
-            const res = await fetch(`${API_BASE}/questions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    subject_id, exam_type_id, year_id,
-                    question_text, option_a, option_b, option_c, option_d,
-                    correct_option, explanation
-                })
-            });
-
-            if (res.ok) {
+            try {
+                const res = await fetch(`${API_BASE}/questions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subject_id, exam_type_id, year_id,
+                        question_text, option_a, option_b, option_c, option_d,
+                        correct_option, explanation
+                    })
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error);
+                }
                 showMessage('Question added successfully!');
-                // Clear form
                 document.getElementById('qText').value = '';
                 document.getElementById('qOptA').value = '';
                 document.getElementById('qOptB').value = '';
                 document.getElementById('qOptC').value = '';
                 document.getElementById('qOptD').value = '';
                 document.getElementById('qExplanation').value = '';
-            } else {
-                const err = await res.json();
-                showMessage(`Error: ${err.error}`, true);
+            } catch (err) {
+                showMessage('Error: ' + err.message, true);
             }
         }
 
         // Initial load
         window.onload = () => {
+            testConnection();
             loadSubjects();
             loadYears();
             loadSubjectsForSelect();
