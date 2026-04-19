@@ -6,11 +6,15 @@
     <title>Learning Lounge Admin</title>
     <style>
         body { font-family: sans-serif; margin: 20px; background: #f4f4f4; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         h1, h2 { color: #333; }
         button { background: #0B1826; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px; }
         button:hover { background: #1a2a3a; }
-        select, input[type="text"], input[type="number"], textarea { width: 100%; padding: 8px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        .btn-danger { background: #dc2626; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-success { background: #16a34a; }
+        .btn-success:hover { background: #15803d; }
+        select, input, textarea { width: 100%; padding: 8px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
         .form-group { margin-bottom: 15px; }
         .catalog-list { list-style: none; padding: 0; }
         .catalog-list li { background: #f9f9f9; margin: 5px 0; padding: 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
@@ -21,15 +25,16 @@
         .tab button:hover { background-color: #ddd; }
         .tab button.active { background-color: #ccc; }
         .tabcontent { display: none; padding: 6px 12px; border-top: none; }
-        #statusBar { padding: 10px; margin-bottom: 15px; border-radius: 4px; }
+        .question-item { background: #f9f9f9; padding: 12px; margin-bottom: 10px; border-radius: 6px; }
+        .question-actions { margin-top: 8px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 24px; border-radius: 12px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📚 Learning Lounge Admin</h1>
-        
-        <!-- Status & Test Connection -->
-        <div id="statusBar" style="background: #f0f0f0;">
+        <div id="statusBar" style="padding: 10px; margin-bottom: 15px; border-radius: 4px; background: #f0f0f0;">
             <span id="connectionStatus">⚪ Not tested</span>
             <button onclick="testConnection()" style="float: right;">Test Connection</button>
         </div>
@@ -38,16 +43,17 @@
             <button class="tablinks active" onclick="openTab(event, 'Subjects')">Subjects</button>
             <button class="tablinks" onclick="openTab(event, 'Years')">Years</button>
             <button class="tablinks" onclick="openTab(event, 'AddQuestion')">Add Question</button>
+            <button class="tablinks" onclick="openTab(event, 'ManageQuestions')">Manage Questions</button>
         </div>
 
         <!-- Subjects Tab -->
         <div id="Subjects" class="tabcontent" style="display: block;">
             <h2>Manage Subjects</h2>
             <div class="form-group">
-                <input type="text" id="subjectName" placeholder="Subject Name (e.g., 'Chemistry')">
-                <input type="text" id="subjectIcon" placeholder="Icon (e.g., '🧪')">
-                <input type="text" id="subjectColor" placeholder="Color (e.g., '#00695C')">
-                <input type="text" id="subjectBg" placeholder="Background (e.g., '#E0F2F1')">
+                <input type="text" id="subjectName" placeholder="Subject Name">
+                <input type="text" id="subjectIcon" placeholder="Icon (e.g., 🧪)">
+                <input type="text" id="subjectColor" placeholder="Color (#00695C)">
+                <input type="text" id="subjectBg" placeholder="Background (#E0F2F1)">
                 <button onclick="addSubject()">Add Subject</button>
             </div>
             <ul id="subjectsList" class="catalog-list"></ul>
@@ -66,21 +72,10 @@
         <!-- Add Question Tab -->
         <div id="AddQuestion" class="tabcontent">
             <h2>Add New Question</h2>
-            <div class="form-group">
-                <label>Subject:</label>
-                <select id="qSubject"></select>
-            </div>
-            <div class="form-group">
-                <label>Year:</label>
-                <select id="qYear"></select>
-            </div>
-            <div class="form-group">
-                <label>Exam Type:</label>
-                <select id="qExamType"></select>
-            </div>
-            <div class="form-group">
-                <textarea id="qText" rows="3" placeholder="Question text"></textarea>
-            </div>
+            <div class="form-group"><label>Subject:</label><select id="qSubject"></select></div>
+            <div class="form-group"><label>Year:</label><select id="qYear"></select></div>
+            <div class="form-group"><label>Exam Type:</label><select id="qExamType"></select></div>
+            <div class="form-group"><textarea id="qText" rows="3" placeholder="Question text"></textarea></div>
             <div class="form-group">
                 <input type="text" id="qOptA" placeholder="Option A">
                 <input type="text" id="qOptB" placeholder="Option B">
@@ -89,254 +84,278 @@
             </div>
             <div class="form-group">
                 <label>Correct Option:</label>
-                <select id="qCorrect">
-                    <option value="A">A</option>
-                    <option value="B">B</option>
-                    <option value="C">C</option>
-                    <option value="D">D</option>
-                </select>
+                <select id="qCorrect"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select>
             </div>
-            <div class="form-group">
-                <textarea id="qExplanation" rows="2" placeholder="Explanation (optional)"></textarea>
-            </div>
+            <div class="form-group"><textarea id="qExplanation" rows="2" placeholder="Explanation (optional)"></textarea></div>
             <button onclick="addQuestion()">Add Question</button>
             <div id="message"></div>
+        </div>
+
+        <!-- Manage Questions Tab -->
+        <div id="ManageQuestions" class="tabcontent">
+            <h2>All Questions</h2>
+            <div class="form-group">
+                <label>Filter by Subject:</label>
+                <select id="filterSubject" onchange="loadQuestions()">
+                    <option value="">All Subjects</option>
+                </select>
+            </div>
+            <div id="questionsList"></div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h2>Edit Question</h2>
+            <input type="hidden" id="editQuestionId">
+            <div class="form-group"><label>Subject:</label><select id="editSubject"></select></div>
+            <div class="form-group"><label>Year:</label><select id="editYear"></select></div>
+            <div class="form-group"><label>Exam Type:</label><select id="editExamType"></select></div>
+            <div class="form-group"><textarea id="editText" rows="3"></textarea></div>
+            <div class="form-group">
+                <input type="text" id="editOptA" placeholder="Option A">
+                <input type="text" id="editOptB" placeholder="Option B">
+                <input type="text" id="editOptC" placeholder="Option C">
+                <input type="text" id="editOptD" placeholder="Option D">
+            </div>
+            <div class="form-group">
+                <label>Correct Option:</label>
+                <select id="editCorrect"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select>
+            </div>
+            <div class="form-group"><textarea id="editExplanation" rows="2"></textarea></div>
+            <button onclick="updateQuestion()" class="btn-success">Save Changes</button>
+            <button onclick="closeModal()">Cancel</button>
         </div>
     </div>
 
     <script>
-        // ===== CONFIGURATION =====
-        // 🔴 REPLACE WITH YOUR ACTUAL RENDER BACKEND URL
         const API_BASE = 'https://learning-lounge-backend.onrender.com';
-        
-        // Helper to show messages
-        function showMessage(text, isError = false) {
-            const msgDiv = document.getElementById('message');
-            msgDiv.textContent = text;
-            msgDiv.className = isError ? 'error' : 'success';
-            setTimeout(() => msgDiv.textContent = '', 5000);
-        }
 
-        function setConnectionStatus(ok, text) {
-            const el = document.getElementById('connectionStatus');
-            el.innerHTML = ok ? '🟢 Connected' : '🔴 Error: ' + text;
-            el.style.color = ok ? 'green' : 'red';
+        function showMessage(text, isError = false) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = isError ? 'error' : 'success';
+            setTimeout(() => msg.textContent = '', 5000);
         }
 
         async function testConnection() {
             try {
                 const res = await fetch(`${API_BASE}/subjects`);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                setConnectionStatus(true);
-                console.log('Connection OK, subjects:', data);
-                loadSubjects(); // refresh
+                document.getElementById('connectionStatus').innerHTML = '🟢 Connected';
             } catch (err) {
-                setConnectionStatus(false, err.message);
-                console.error('Connection test failed:', err);
+                document.getElementById('connectionStatus').innerHTML = '🔴 Error: ' + err.message;
             }
         }
 
-        // Tab switching
         function openTab(evt, tabName) {
-            const tabcontent = document.getElementsByClassName("tabcontent");
-            for (let i = 0; i < tabcontent.length; i++) {
-                tabcontent[i].style.display = "none";
-            }
-            const tablinks = document.getElementsByClassName("tablinks");
-            for (let i = 0; i < tablinks.length; i++) {
-                tablinks[i].className = tablinks[i].className.replace(" active", "");
-            }
-            document.getElementById(tabName).style.display = "block";
-            evt.currentTarget.className += " active";
-            
+            document.querySelectorAll('.tabcontent').forEach(tc => tc.style.display = 'none');
+            document.querySelectorAll('.tablinks').forEach(tl => tl.classList.remove('active'));
+            document.getElementById(tabName).style.display = 'block';
+            evt.currentTarget.classList.add('active');
             if (tabName === 'Subjects') loadSubjects();
             else if (tabName === 'Years') loadYears();
-            else if (tabName === 'AddQuestion') {
-                loadSubjectsForSelect();
-                loadExamTypesForSelect();
-                loadYearsForSelect();
-            }
+            else if (tabName === 'AddQuestion') { loadSubjectsForSelect(); loadExamTypesForSelect(); loadYearsForSelect(); }
+            else if (tabName === 'ManageQuestions') { loadFilterSubjects(); loadQuestions(); }
         }
 
-        // --- Subjects ---
+        // Subjects
         async function loadSubjects() {
-            try {
-                const res = await fetch(`${API_BASE}/subjects`);
-                const subjects = await res.json();
-                const list = document.getElementById('subjectsList');
-                list.innerHTML = subjects.map(s => `
-                    <li>
-                        ${s.name} ${s.icon || ''}
-                        <button onclick="deleteSubject('${s.id}')">Delete</button>
-                    </li>
-                `).join('');
-            } catch (err) {
-                showMessage('Failed to load subjects: ' + err.message, true);
-            }
+            const res = await fetch(`${API_BASE}/subjects`);
+            const data = await res.json();
+            document.getElementById('subjectsList').innerHTML = data.map(s => `
+                <li>${s.name} ${s.icon||''} <button onclick="deleteSubject('${s.id}')">Delete</button></li>
+            `).join('');
         }
-
         async function addSubject() {
             const name = document.getElementById('subjectName').value;
+            if (!name) return alert('Subject name required');
             const icon = document.getElementById('subjectIcon').value;
             const color = document.getElementById('subjectColor').value;
             const bg = document.getElementById('subjectBg').value;
-            if (!name) return alert('Subject name required');
-
-            try {
-                const res = await fetch(`${API_BASE}/subjects`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, icon, color, bg })
-                });
-                if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.error);
-                }
-                showMessage('Subject added!');
-                loadSubjects();
-                document.getElementById('subjectName').value = '';
-                document.getElementById('subjectIcon').value = '';
-                document.getElementById('subjectColor').value = '';
-                document.getElementById('subjectBg').value = '';
-            } catch (err) {
-                showMessage('Error: ' + err.message, true);
-            }
+            await fetch(`${API_BASE}/subjects`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({name, icon, color, bg})
+            });
+            loadSubjects();
+            ['subjectName','subjectIcon','subjectColor','subjectBg'].forEach(id => document.getElementById(id).value = '');
         }
-
         async function deleteSubject(id) {
-            if (!confirm('Are you sure?')) return;
-            try {
-                await fetch(`${API_BASE}/subjects/${id}`, { method: 'DELETE' });
-                loadSubjects();
-                showMessage('Subject deleted');
-            } catch (err) {
-                showMessage('Delete failed: ' + err.message, true);
-            }
+            if (!confirm('Delete this subject?')) return;
+            await fetch(`${API_BASE}/subjects/${id}`, {method:'DELETE'});
+            loadSubjects();
         }
 
-        // --- Years ---
+        // Years
         async function loadYears() {
-            try {
-                const res = await fetch(`${API_BASE}/years`);
-                const years = await res.json();
-                const list = document.getElementById('yearsList');
-                list.innerHTML = years.map(y => `
-                    <li>
-                        ${y.year}
-                        <button onclick="deleteYear('${y.id}')">Delete</button>
-                    </li>
-                `).join('');
-            } catch (err) {
-                showMessage('Failed to load years: ' + err.message, true);
-            }
+            const res = await fetch(`${API_BASE}/years`);
+            const data = await res.json();
+            document.getElementById('yearsList').innerHTML = data.map(y => `
+                <li>${y.year} <button onclick="deleteYear('${y.id}')">Delete</button></li>
+            `).join('');
         }
-
         async function addYear() {
             const year = document.getElementById('yearInput').value;
             if (!year) return alert('Year required');
-            try {
-                const res = await fetch(`${API_BASE}/years`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ year: parseInt(year) })
-                });
-                if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.error);
-                }
-                showMessage('Year added!');
-                loadYears();
-                document.getElementById('yearInput').value = '';
-            } catch (err) {
-                showMessage('Error: ' + err.message, true);
-            }
+            await fetch(`${API_BASE}/years`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({year: parseInt(year)})
+            });
+            loadYears();
+            document.getElementById('yearInput').value = '';
         }
-
         async function deleteYear(id) {
-            if (!confirm('Are you sure?')) return;
-            try {
-                await fetch(`${API_BASE}/years/${id}`, { method: 'DELETE' });
-                loadYears();
-                showMessage('Year deleted');
-            } catch (err) {
-                showMessage('Delete failed: ' + err.message, true);
-            }
+            if (!confirm('Delete this year?')) return;
+            await fetch(`${API_BASE}/years/${id}`, {method:'DELETE'});
+            loadYears();
         }
 
-        // --- Load dropdowns for question form ---
+        // Load dropdowns
         async function loadSubjectsForSelect() {
             const res = await fetch(`${API_BASE}/subjects`);
-            const subjects = await res.json();
-            const select = document.getElementById('qSubject');
-            select.innerHTML = subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            const data = await res.json();
+            const html = data.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            document.getElementById('qSubject').innerHTML = html;
+            document.getElementById('editSubject').innerHTML = html;
         }
-
         async function loadExamTypesForSelect() {
             const res = await fetch(`${API_BASE}/exam-types`);
-            const types = await res.json();
-            const select = document.getElementById('qExamType');
-            select.innerHTML = types.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            const data = await res.json();
+            const html = data.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            document.getElementById('qExamType').innerHTML = html;
+            document.getElementById('editExamType').innerHTML = html;
         }
-
         async function loadYearsForSelect() {
             const res = await fetch(`${API_BASE}/years`);
-            const years = await res.json();
-            const select = document.getElementById('qYear');
-            select.innerHTML = years.map(y => `<option value="${y.id}">${y.year}</option>`).join('');
+            const data = await res.json();
+            const html = data.map(y => `<option value="${y.id}">${y.year}</option>`).join('');
+            document.getElementById('qYear').innerHTML = html;
+            document.getElementById('editYear').innerHTML = html;
         }
 
-        // --- Add Question ---
+        // Add question
         async function addQuestion() {
-            const subject_id = document.getElementById('qSubject').value;
-            const exam_type_id = document.getElementById('qExamType').value;
-            const year_id = document.getElementById('qYear').value;
-            const question_text = document.getElementById('qText').value;
-            const option_a = document.getElementById('qOptA').value;
-            const option_b = document.getElementById('qOptB').value;
-            const option_c = document.getElementById('qOptC').value;
-            const option_d = document.getElementById('qOptD').value;
-            const correct_option = document.getElementById('qCorrect').value;
-            const explanation = document.getElementById('qExplanation').value;
-
-            if (!subject_id || !exam_type_id || !year_id || !question_text) {
-                return showMessage('Please fill in all required fields', true);
-            }
-
-            try {
-                const res = await fetch(`${API_BASE}/questions`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        subject_id, exam_type_id, year_id,
-                        question_text, option_a, option_b, option_c, option_d,
-                        correct_option, explanation
-                    })
-                });
-                if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.error);
-                }
-                showMessage('Question added successfully!');
-                document.getElementById('qText').value = '';
-                document.getElementById('qOptA').value = '';
-                document.getElementById('qOptB').value = '';
-                document.getElementById('qOptC').value = '';
-                document.getElementById('qOptD').value = '';
-                document.getElementById('qExplanation').value = '';
-            } catch (err) {
-                showMessage('Error: ' + err.message, true);
+            const payload = {
+                subject_id: document.getElementById('qSubject').value,
+                exam_type_id: document.getElementById('qExamType').value,
+                year_id: document.getElementById('qYear').value,
+                question_text: document.getElementById('qText').value,
+                option_a: document.getElementById('qOptA').value,
+                option_b: document.getElementById('qOptB').value,
+                option_c: document.getElementById('qOptC').value,
+                option_d: document.getElementById('qOptD').value,
+                correct_option: document.getElementById('qCorrect').value,
+                explanation: document.getElementById('qExplanation').value
+            };
+            const res = await fetch(`${API_BASE}/questions`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                showMessage('Question added!');
+                ['qText','qOptA','qOptB','qOptC','qOptD','qExplanation'].forEach(id => document.getElementById(id).value = '');
+            } else {
+                const err = await res.json();
+                showMessage('Error: ' + err.error, true);
             }
         }
 
-        // Initial load
+        // Manage Questions
+        async function loadFilterSubjects() {
+            const res = await fetch(`${API_BASE}/subjects`);
+            const data = await res.json();
+            const select = document.getElementById('filterSubject');
+            select.innerHTML = '<option value="">All Subjects</option>' + data.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        }
+
+        async function loadQuestions() {
+            const subjectId = document.getElementById('filterSubject').value;
+            let url = `${API_BASE}/questions`;
+            if (subjectId) url += `?subject_id=${subjectId}`;
+            const res = await fetch(url);
+            const questions = await res.json();
+            const container = document.getElementById('questionsList');
+            if (!questions.length) {
+                container.innerHTML = '<p>No questions found.</p>';
+                return;
+            }
+            container.innerHTML = questions.map(q => `
+                <div class="question-item">
+                    <strong>${q.subject} (${q.year} ${q.examType})</strong>
+                    <p>${q.text}</p>
+                    <small>Options: A) ${q.options[0]} B) ${q.options[1]} C) ${q.options[2]} D) ${q.options[3]}</small>
+                    <p>Correct: ${['A','B','C','D'][q.answer]}</p>
+                    <div class="question-actions">
+                        <button onclick='openEditModal(${JSON.stringify(q)})'>✏️ Edit</button>
+                        <button class="btn-danger" onclick="deleteQuestion('${q.id}')">🗑️ Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openEditModal(q) {
+            document.getElementById('editQuestionId').value = q.id;
+            document.getElementById('editSubject').value = q.subject_id || '';
+            document.getElementById('editYear').value = q.year_id || '';
+            document.getElementById('editExamType').value = q.exam_type_id || '';
+            document.getElementById('editText').value = q.text;
+            document.getElementById('editOptA').value = q.options[0];
+            document.getElementById('editOptB').value = q.options[1];
+            document.getElementById('editOptC').value = q.options[2];
+            document.getElementById('editOptD').value = q.options[3];
+            document.getElementById('editCorrect').value = ['A','B','C','D'][q.answer];
+            document.getElementById('editExplanation').value = q.explanation || '';
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        async function updateQuestion() {
+            const id = document.getElementById('editQuestionId').value;
+            const payload = {
+                subject_id: document.getElementById('editSubject').value,
+                exam_type_id: document.getElementById('editExamType').value,
+                year_id: document.getElementById('editYear').value,
+                question_text: document.getElementById('editText').value,
+                option_a: document.getElementById('editOptA').value,
+                option_b: document.getElementById('editOptB').value,
+                option_c: document.getElementById('editOptC').value,
+                option_d: document.getElementById('editOptD').value,
+                correct_option: document.getElementById('editCorrect').value,
+                explanation: document.getElementById('editExplanation').value
+            };
+            const res = await fetch(`${API_BASE}/questions/${id}`, {
+                method: 'PUT', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                closeModal();
+                loadQuestions();
+                showMessage('Question updated!');
+            } else {
+                const err = await res.json();
+                alert('Error: ' + err.error);
+            }
+        }
+
+        async function deleteQuestion(id) {
+            if (!confirm('Delete this question permanently?')) return;
+            const res = await fetch(`${API_BASE}/questions/${id}`, {method:'DELETE'});
+            if (res.ok) {
+                loadQuestions();
+                showMessage('Question deleted');
+            } else {
+                alert('Delete failed');
+            }
+        }
+
         window.onload = () => {
             testConnection();
-            loadSubjects();
-            loadYears();
-            loadSubjectsForSelect();
-            loadExamTypesForSelect();
-            loadYearsForSelect();
+            loadSubjects(); loadYears();
+            loadSubjectsForSelect(); loadExamTypesForSelect(); loadYearsForSelect();
         };
     </script>
 </body>
